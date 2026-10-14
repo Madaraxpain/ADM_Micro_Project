@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusDB | Student Management System</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { --navy:#111b35; --blue:#345fe8; --ink:#1d2943; --muted:#69758e;
+      --bg:#f4f6fb; --border:#e3e8f1; --good:#087e62; --bad:#bb3f48; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--ink); background:var(--bg); }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    .hidden { display:none!important; }
+    .setup { max-width:1000px; margin:18px auto 0; padding:13px 16px; background:#fff5df;
+      border:1px solid #f2dba2; border-radius:12px; color:#735019; font-size:14px; }
+    .auth-page { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; }
+    .auth-info { background:linear-gradient(155deg,#101b3b,#253f85 75%,#426aee);
+      color:white; padding:clamp(28px,6vw,88px); display:flex; flex-direction:column; justify-content:space-between; }
+    .logo { display:flex; align-items:center; gap:10px; font-size:23px; font-weight:800; letter-spacing:-.6px; }
+    .logo-mark { width:35px; height:35px; display:grid; place-items:center; border-radius:10px;
+      background:#fff; color:#2948a0; font-size:20px; }
+    .auth-info h1 { font-size:clamp(34px,4vw,55px); line-height:1.13; max-width:510px; letter-spacing:-1.6px; }
+    .auth-info p { color:#d7e1ff; line-height:1.8; max-width:430px; }
+    .auth-info small { color:#bac9f1; }
+    .auth-area { display:grid; place-items:center; padding:32px; }
+    .auth-card { width:100%; max-width:420px; background:white; border:1px solid var(--border);
+      border-radius:20px; padding:34px; box-shadow:0 15px 45px #1b2a5010; }
+    h2,h3,p { margin-top:0; }
+    .muted { color:var(--muted); }
+    .tabs { display:flex; background:#f2f5fb; border-radius:10px; padding:5px; margin:24px 0; }
+    .tabs button { flex:1; border:0; background:transparent; border-radius:8px; padding:10px; color:var(--muted); }
+    .tabs button.active { background:white; color:var(--blue); font-weight:700; box-shadow:0 2px 8px #202b4012; }
+    label { display:block; margin-bottom:7px; font-size:13px; font-weight:650; }
+    input,select { width:100%; border:1px solid #dbe1ed; border-radius:10px; padding:12px 13px;
+      outline:none; background:white; color:var(--ink); }
+    input:focus,select:focus { border-color:#6787ed; box-shadow:0 0 0 3px #6787ed24; }
+    .field { margin-bottom:16px; }
+    .btn { border:0; background:var(--blue); color:white; padding:11px 17px;
+      border-radius:10px; font-weight:650; }
+    .btn:hover { filter:brightness(.95); }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .btn.full { width:100%; padding:13px; }
+    .btn.secondary { background:#edf1fb; color:#33436b; }
+    .btn.danger { background:#fff0f0; color:var(--bad); }
+    .message { margin:14px 0 0; font-size:13px; line-height:1.5; }
+    .message.error { color:var(--bad); }
+    .message.success { color:var(--good); }
+    .layout { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:100vh; }
+    .sidebar { background:var(--navy); color:white; padding:26px 18px; display:flex; flex-direction:column; gap:32px; }
+    .sidebar nav { color:#d8e0f4; padding:11px 14px; background:#ffffff1b; border-radius:9px; }
+    .sidebar footer { margin-top:auto; color:#abb8d6; font-size:12px; line-height:1.6; }
+    main { padding:32px; max-width:1600px; width:100%; margin:auto; }
+    .top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:25px; }
+    .top h1 { margin:0 0 5px; font-size:29px; letter-spacing:-.7px; }
+    .user-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .user-email { font-size:13px; color:var(--muted); }
+    .stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:22px; }
+    .panel { background:white; border-radius:16px; border:1px solid var(--border); padding:22px;
+      box-shadow:0 5px 18px #16264608; }
+    .stat-label { color:var(--muted); font-size:13px; }
+    .stat-number { margin:8px 0 0; font-size:31px; font-weight:800; letter-spacing:-1px; }
+    .content-grid { display:grid; grid-template-columns:330px minmax(0,1fr); gap:18px; align-items:start; }
+    .panel-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+    .panel-heading h3 { margin:0; }
+    .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .form-actions { display:flex; gap:9px; margin-top:18px; }
+    .table-wrap { overflow-x:auto; }
+    table { border-collapse:collapse; width:100%; min-width:700px; }
+    th,td { padding:13px 10px; text-align:left; border-bottom:1px solid #edf0f6; font-size:13px; }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+    .tool-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .tool-row input { max-width:230px; }
+    .mini { padding:7px 10px; border-radius:8px; background:#edf1fb; border:0; color:#344d98; margin-right:4px; font-size:12px; font-weight:650; }
+    .mini.red { color:var(--bad); background:#fff0f0; }
+    .pill { background:#ecf2ff; color:#3154a5; border-radius:30px; padding:5px 9px; display:inline-block; }
+    .lower { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+    .activity,.breakdown { display:grid; gap:11px; }
+    .activity-item,.breakdown-item { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; }
+    .activity-item small { color:var(--muted); white-space:nowrap; }
+    .divider { border-bottom:1px solid #eef1f6; padding-bottom:11px; }
+    .empty { padding:25px 10px; color:var(--muted); text-align:center; }
+    @media (max-width:1050px) { .content-grid { grid-template-columns:1fr; } }
+    @media (max-width:740px) {
+      .auth-page { grid-template-columns:1fr; }
+      .auth-info { min-height:220px; padding:25px; }
+      .auth-info h1 { font-size:30px; margin:30px 0 5px; }
+      .auth-info p,.auth-info small { display:none; }
+      .auth-area { padding:20px; }
+      .layout { grid-template-columns:1fr; }
+      .sidebar { padding:14px 18px; flex-direction:row; justify-content:space-between; align-items:center; }
+      .sidebar nav,.sidebar footer { display:none; }
+      main { padding:18px; }
+      .stats { gap:9px; }
+      .stats .panel { padding:13px; }
+      .stat-number { font-size:24px; }
+      .lower { grid-template-columns:1fr; }
+    }
+    .logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo-image {
+    width: 220px;
+    height: 100px;
+    object-fit: contain;
+    display: block;
+}
+  </style>
+</head>
+<body>
+  <!-- SETUP: Paste your Supabase Project URL and publishable (or anon) key below. -->
+  <script>
+    const SUPABASE_URL ="https://jvmfhzycncetiqrrcmui.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_TWrLYT9E0XX3o0i-4GXxVw_E2xIH3Je";
+  </script>
+
+  <div id="setupWarning" class="setup hidden">⚠ Setup needed: Create your Supabase project, run <b>database.sql</b> in its SQL Editor, and paste the Project URL and <b>publishable/anon key</b> into this HTML file. Never paste a secret/service-role key here.</div>
+
+  <section id="authPage" class="auth-page">
+    <div class="auth-info">
+   <div class="logo">
+   <div class="logo">
+<div class="logo">
+    <span class="logo-mark">📖</span> 
+</div>
+</div>
+    <span>CampusDB</span>
+</div>
+     <div class="project-members">
+    <h1>One place for your Student Records.</h1>
+
+    <p>Group Project Members :</p>
+
+    <p>Deep Pisat</p>
+    <p>Aditya Yadav</p>
+    <p>Pratik Singh</p>
+    <p>Dipiksha Gole</p>
+    <p>Siddhi Pagdhare</p>
+</div>
+
+<h2>
+    Advanced Database Management System ·
+    Micro Project
+</h2>
+    </div>
+    <div class="auth-area">
+      <div class="auth-card">
+        <h2>Welcome to CampusDB</h2>
+        <p class="muted">Sign in or create an account to manage student data.</p>
+        <div class="tabs">
+          <button id="loginTab" class="active" type="button">Login</button>
+          <button id="signupTab" type="button">Sign up</button>
+        </div>
+        <form id="authForm">
+          <div class="field"><label for="authEmail">Email address</label><input id="authEmail" type="email" placeholder="you@college.edu" autocomplete="email" required /></div>
+          <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="current-password" required /></div>
+          <button id="authSubmit" class="btn full" type="submit">Login</button>
+          <p id="authMessage" class="message" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="dashboard" class="layout hidden">
+    <aside class="sidebar">
+      <div class="logo"><span class="logo-mark">📖</span> CampusDB</div>
+      <nav>▤ &nbsp; Student records</nav>
+      <footer>Secure records · PostgreSQL<br />Academic mini-project</footer>
+    </aside>
+    <main>
+      <div class="top">
+        <div><h1>Student Management</h1><p class="muted" style="margin:0">Manage records stored in your PostgreSQL database.</p></div>
+        <div class="user-actions"><span id="currentEmail" class="user-email"></span><button id="logoutBtn" class="btn secondary">Logout</button></div>
+      </div>
+
+      <div class="stats">
+        <div class="panel"><div class="stat-label">Total students</div><div id="totalStudents" class="stat-number">0</div></div>
+        <div class="panel"><div class="stat-label">Departments used</div><div id="totalDepartments" class="stat-number">0</div></div>
+        <div class="panel"><div class="stat-label">Recent changes</div><div id="recentChanges" class="stat-number">0</div></div>
+      </div>
+
+      <div class="content-grid">
+        <div class="panel">
+          <div class="panel-heading"><h3 id="formHeading">Add student</h3></div>
+          <form id="studentForm">
+            <div class="field"><label for="fullName">Full name</label><input id="fullName" maxlength="120" required placeholder="e.g. Rahul Sharma" /></div>
+            <div class="row-2">
+              <div class="field"><label for="rollNo">Roll number</label><input id="rollNo" maxlength="40" required placeholder="CO101" /></div>
+              <div class="field"><label for="semester">Semester</label><select id="semester" required><option value="">Choose</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+            </div>
+            <div class="field"><label for="studentEmail">Student email</label><input id="studentEmail" type="email" required placeholder="student@example.com" /></div>
+            <div class="field"><label for="department">Department</label><select id="department" required><option value="">Loading...</option></select></div>
+            <div class="form-actions"><button id="saveBtn" type="submit" class="btn">Save student</button><button id="cancelEdit" class="btn secondary hidden" type="button">Cancel</button></div>
+            <p id="formMessage" class="message" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-heading tool-row"><h3>Student records</h3><input id="searchInput" placeholder="Search name or roll no." aria-label="Search students" /></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Roll No.</th><th>Student</th><th>Department</th><th>Semester</th><th>Actions</th></tr></thead>
+            <tbody id="studentRows"><tr><td colspan="5" class="empty">Loading students...</td></tr></tbody>
+          </table></div>
+          <p id="listMessage" class="message" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <div class="lower">
+        <div class="panel"><div class="panel-heading"><h3>Department summary</h3><span class="muted" style="font-size:12px">SQL view</span></div><div id="departmentSummary" class="breakdown"><p class="muted">Loading...</p></div></div>
+        <div class="panel"><div class="panel-heading"><h3>Recent activity</h3><span class="muted" style="font-size:12px">Database trigger</span></div><div id="activityList" class="activity"><p class="muted">Loading...</p></div></div>
+      </div>
+    </main>
+  </section>
+
+  <script>
+    // IMPORTANT: Never put a Supabase service_role / secret key in browser code.
+    const $ = (id) => document.getElementById(id);
+    const configured = SUPABASE_URL.startsWith("https://") &&
+      !SUPABASE_URL.includes("YOUR_") && SUPABASE_KEY.length > 15 &&
+      !SUPABASE_KEY.includes("YOUR_");
+    const db = configured && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+    let mode = "login";
+    let currentUser = null;
+    let students = [];
+    let departments = [];
+    let editingId = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[ch]);
+    }
+    function showMessage(id, message, error = false) {
+      $(id).textContent = message;
+      $(id).className = "message " + (error ? "error" : "success");
+    }
+    function setMode(nextMode) {
+      mode = nextMode;
+      $("loginTab").classList.toggle("active", mode === "login");
+      $("signupTab").classList.toggle("active", mode === "signup");
+      $("authSubmit").textContent = mode === "login" ? "Login" : "Create account";
+      $("authPassword").autocomplete = mode === "login" ? "current-password" : "new-password";
+      showMessage("authMessage", "");
+    }
+    function showSession() {
+      $("authPage").classList.toggle("hidden", !!currentUser);
+      $("dashboard").classList.toggle("hidden", !currentUser);
+      $("currentEmail").textContent = currentUser?.email ?? "";
+    }
+
+    $("loginTab").addEventListener("click", () => setMode("login"));
+    $("signupTab").addEventListener("click", () => setMode("signup"));
+    $("authForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!db) return showMessage("authMessage", "Configure Supabase first (see setup notice).", true);
+      const email = $("authEmail").value.trim();
+      const password = $("authPassword").value;
+      const button = $("authSubmit");
+      button.disabled = true;
+      showMessage("authMessage", "Working...");
+      try {
+        if (mode === "signup") {
+          const { data, error } = await db.auth.signUp({ email, password });
+          if (error) throw error;
+          showMessage("authMessage", data.session
+            ? "Account created! Opening dashboard..."
+            : "Account created. Please check your email for a confirmation link, then log in.");
+        } else {
+          const { error } = await db.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          showMessage("authMessage", "Login successful!");
+        }
+      } catch (err) {
+        console.error("Supabase authentication error:", err);
+        const networkError = /failed to fetch|networkerror|fetch failed/i.test(err.message || "");
+        showMessage("authMessage", networkError
+          ? "Cannot reach Supabase. Check the Project URL and your internet connection."
+          : (err.message || "Unable to authenticate."), true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $("logoutBtn").addEventListener("click", async () => {
+      if (!db) return;
+      const { error } = await db.auth.signOut();
+      if (error) showMessage("listMessage", error.message, true);
+    });
+
+    async function loadDepartments() {
+      const { data, error } = await db.from("departments").select("id,name").order("name");
+      if (error) throw error;
+      departments = data || [];
+      $("department").innerHTML = '<option value="">Select department</option>' +
+        departments.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join("");
+    }
+    async function loadStudents() {
+      const { data, error } = await db.from("students")
+        .select("id,full_name,roll_no,email,semester,department_id,departments(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      students = data || [];
+      renderStudents();
+      $("totalStudents").textContent = students.length;
+      $("totalDepartments").textContent = new Set(students.map(s => s.department_id)).size;
+    }
+    function renderStudents() {
+      const q = $("searchInput").value.trim().toLowerCase();
+      const filtered = students.filter(s =>
+        s.full_name.toLowerCase().includes(q) || s.roll_no.toLowerCase().includes(q));
+      $("studentRows").innerHTML = filtered.length ? filtered.map(s => `
+        <tr>
+          <td><strong>${escapeHtml(s.roll_no)}</strong></td>
+          <td>${escapeHtml(s.full_name)}<div class="muted" style="font-size:12px;margin-top:3px">${escapeHtml(s.email)}</div></td>
+          <td><span class="pill">${escapeHtml(s.departments?.name || "Unknown")}</span></td>
+          <td>${escapeHtml(s.semester)}</td>
+          <td><button class="mini" data-action="edit" data-id="${escapeHtml(s.id)}">Edit</button><button class="mini red" data-action="delete" data-id="${escapeHtml(s.id)}">Delete</button></td>
+        </tr>`).join("") : '<tr><td colspan="5" class="empty">No student records found.</td></tr>';
+    }
+    $("searchInput").addEventListener("input", renderStudents);
+
+    function resetForm() {
+      editingId = null;
+      $("studentForm").reset();
+      $("formHeading").textContent = "Add student";
+      $("saveBtn").textContent = "Save student";
+      $("cancelEdit").classList.add("hidden");
+      showMessage("formMessage", "");
+    }
+    $("cancelEdit").addEventListener("click", resetForm);
+    $("studentRows").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const student = students.find(s => s.id === button.dataset.id);
+      if (!student) return;
+      if (button.dataset.action === "edit") {
+        editingId = student.id;
+        $("fullName").value = student.full_name;
+        $("rollNo").value = student.roll_no;
+        $("studentEmail").value = student.email;
+        $("semester").value = student.semester;
+        $("department").value = student.department_id;
+        $("formHeading").textContent = "Edit student";
+        $("saveBtn").textContent = "Update student";
+        $("cancelEdit").classList.remove("hidden");
+        $("fullName").focus();
+      } else if (button.dataset.action === "delete") {
+        if (!confirm(`Delete ${student.full_name} (${student.roll_no})?`)) return;
+        const { error } = await db.from("students").delete().eq("id", student.id);
+        if (error) return showMessage("listMessage", error.message, true);
+        if (editingId === student.id) resetForm();
+        showMessage("listMessage", "Student deleted successfully.");
+        await loadDashboard();
+      }
+    });
+    $("studentForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!currentUser) return;
+      const record = {
+        full_name: $("fullName").value.trim(),
+        roll_no: $("rollNo").value.trim(),
+        email: $("studentEmail").value.trim(),
+        semester: Number($("semester").value),
+        department_id: Number($("department").value)
+      };
+      if (!record.full_name || !record.roll_no || !record.department_id) {
+        return showMessage("formMessage", "Please fill out every field.", true);
+      }
+      $("saveBtn").disabled = true;
+      try {
+        const wasEditing = Boolean(editingId);
+        const result = wasEditing
+          ? await db.from("students").update(record).eq("id", editingId)
+          : await db.from("students").insert({ ...record, user_id: currentUser.id });
+        if (result.error) throw result.error;
+        resetForm();
+        showMessage("formMessage", wasEditing ? "Student updated successfully." : "Student saved successfully.");
+        await loadDashboard();
+      } catch (err) {
+        showMessage("formMessage", err.code === "23505"
+          ? "This roll number already exists in your records."
+          : (err.message || "Could not save student."), true);
+      } finally {
+        $("saveBtn").disabled = false;
+      }
+    });
+
+    async function loadExtras() {
+      const [summaryResult, activityResult] = await Promise.all([
+        db.from("student_department_summary").select("department,total_students").order("department"),
+        db.from("student_audit").select("operation,student_name,created_at")
+          .order("created_at", { ascending: false }).limit(6)
+      ]);
+      if (summaryResult.error) throw summaryResult.error;
+      if (activityResult.error) throw activityResult.error;
+      const summary = summaryResult.data || [];
+      const activity = activityResult.data || [];
+      $("departmentSummary").innerHTML = summary.length ? summary.map(s => `
+        <div class="breakdown-item divider"><span>${escapeHtml(s.department)}</span><strong>${escapeHtml(s.total_students)}</strong></div>
+      `).join("") : '<p class="muted">Add a student to see the department summary.</p>';
+      $("activityList").innerHTML = activity.length ? activity.map(a => `
+        <div class="activity-item divider"><span><strong>${escapeHtml(a.operation)}</strong> — ${escapeHtml(a.student_name)}</span>
+        <small>${escapeHtml(new Date(a.created_at).toLocaleDateString())}</small></div>
+      `).join("") : '<p class="muted">No recent changes yet.</p>';
+      $("recentChanges").textContent = activity.length;
+    }
+    async function loadDashboard() {
+      if (!currentUser) return;
+      try {
+        await Promise.all([loadStudents(), loadExtras()]);
+      } catch (err) {
+        showMessage("listMessage", err.message || "Unable to load database records.", true);
+      }
+    }
+    async function start() {
+      if (!db) {
+        $("setupWarning").classList.remove("hidden");
+        return;
+      }
+      const { data, error } = await db.auth.getSession();
+      if (error) showMessage("authMessage", error.message, true);
+      currentUser = data?.session?.user || null;
+      showSession();
+      if (currentUser) {
+        try { await loadDepartments(); await loadDashboard(); }
+        catch (err) { showMessage("listMessage", err.message, true); }
+      }
+      db.auth.onAuthStateChange((_event, session) => {
+        const previousId = currentUser?.id;
+        currentUser = session?.user || null;
+        showSession();
+        if (currentUser && previousId !== currentUser.id) {
+          // Schedule database calls outside the authentication callback.
+          setTimeout(async () => {
+            try { await loadDepartments(); await loadDashboard(); }
+            catch (err) { showMessage("listMessage", err.message, true); }
+          }, 0);
+        }
+        if (!currentUser) { students = []; departments = []; resetForm(); }
+      });
+    }
+    start();
+  </script>
+</body>
+</html>
